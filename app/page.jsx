@@ -26,13 +26,13 @@ import { db, firebaseReady } from "@/lib/firebase";
 const LIME = "#d4ff00";
 const BG = "#0a0a0a";
 
-/* ---------- AI helper — calls server-side /api/claude ---------- */
-async function callClaude({ user, system, history = [], maxTokens = 1200 }) {
+/* ---------- AI helper — calls server-side /api/ai (Gemini) ---------- */
+async function callAI({ user, system, history = [], maxTokens = 1200, jsonMode = false }) {
   const messages = [...history, { role: "user", content: user }];
-  const res = await fetch("/api/claude", {
+  const res = await fetch("/api/ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, system, maxTokens }),
+    body: JSON.stringify({ messages, system, maxTokens, jsonMode }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -572,7 +572,7 @@ function AutomationBuilder({ onSave, joined }) {
         "You convert natural-language automation instructions into structured workflows. Return ONLY valid minified JSON, no markdown, no prose. " +
         "Schema: {\"trigger\":{\"label\":string,\"description\":string},\"steps\":[{\"label\":string,\"type\":string,\"action\":string,\"description\":string}]}. " +
         "Keep labels to 2-3 words. Keep descriptions under 60 chars. 2-5 steps max.";
-      const out = await callClaude({ user: input.trim(), system: sys, maxTokens: 800 });
+      const out = await callAI({ user: input.trim(), system: sys, maxTokens: 800, jsonMode: true });
       const parsed = extractJSON(out);
       if (!parsed.trigger || !Array.isArray(parsed.steps)) throw new Error("bad shape");
       setResult(parsed);
@@ -732,7 +732,7 @@ function AIClone({ onSave, joined }) {
         "You design concise system prompts for AI assistants that mimic a described person. " +
         "Output ONLY the system prompt text — no preamble, no markdown, no quotes around it. " +
         "Cover personality, tone, goals, and typical behavior. Keep it under 140 words. Write in second person (You are...).";
-      const out = await callClaude({ user: description.trim(), system: sys, maxTokens: 500 });
+      const out = await callAI({ user: description.trim(), system: sys, maxTokens: 500 });
       setSystemPrompt(out.trim());
       setMessages([{ role: "assistant", content: "alright, i'm you now. ask me anything — business ideas, opinions, whatever. what's up?" }]);
     } catch {
@@ -750,7 +750,7 @@ function AIClone({ onSave, joined }) {
     setChatInput("");
     setChatting(true);
     try {
-      const out = await callClaude({
+      const out = await callAI({
         user: userMsg.content,
         system: systemPrompt,
         history: messages,
@@ -895,7 +895,7 @@ function StartupSimulator({ onSave, joined }) {
         "You simulate realistic 6-month trajectories for side-project startups. Return ONLY valid minified JSON, no markdown, no prose. " +
         "Schema: {\"name\":string,\"months\":[{\"label\":\"M1\"..\"M6\",\"users\":number,\"revenue\":number}],\"problems\":[string,string,string],\"story\":string,\"peakMrr\":string}. " +
         "Keep story to 3-4 tight sentences, conversational, realistic — not hype. Problems should be specific, not generic. Users and revenue should follow a plausible indie curve (slow start, gradual). months MUST have exactly 6 entries.";
-      const out = await callClaude({ user: idea.trim(), system: sys, maxTokens: 900 });
+      const out = await callAI({ user: idea.trim(), system: sys, maxTokens: 900, jsonMode: true });
       const parsed = extractJSON(out);
       if (!Array.isArray(parsed.months) || parsed.months.length < 4) throw new Error("bad");
       setResult(parsed);
