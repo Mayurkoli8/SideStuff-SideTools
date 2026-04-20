@@ -34,11 +34,11 @@ async function callAI({ user, system, history = [], maxTokens = 1200, jsonMode =
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, system, maxTokens, jsonMode }),
   });
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `API ${res.status}`);
+    const msg = data.hint ? `${data.error || "error"} — ${data.hint}` : (data.error || `API ${res.status}`);
+    throw new Error(msg);
   }
-  const data = await res.json();
   return data.text || "";
 }
 
@@ -577,7 +577,7 @@ function AutomationBuilder({ onSave, joined }) {
       if (!parsed.trigger || !Array.isArray(parsed.steps)) throw new Error("bad shape");
       setResult(parsed);
     } catch (e) {
-      setError("couldn't build that one. try rephrasing?");
+      setError(e?.message || "couldn't build that one. try rephrasing?");
     } finally {
       setLoading(false);
     }
@@ -735,8 +735,8 @@ function AIClone({ onSave, joined }) {
       const out = await callAI({ user: description.trim(), system: sys, maxTokens: 500 });
       setSystemPrompt(out.trim());
       setMessages([{ role: "assistant", content: "alright, i'm you now. ask me anything — business ideas, opinions, whatever. what's up?" }]);
-    } catch {
-      setError("clone machine broke. try again?");
+    } catch (e) {
+      setError(e?.message || "clone machine broke. try again?");
     } finally {
       setBuilding(false);
     }
@@ -899,8 +899,8 @@ function StartupSimulator({ onSave, joined }) {
       const parsed = extractJSON(out);
       if (!Array.isArray(parsed.months) || parsed.months.length < 4) throw new Error("bad");
       setResult(parsed);
-    } catch {
-      setError("simulation crashed. try a different idea?");
+    } catch (e) {
+      setError(e?.message || "simulation crashed. try a different idea?");
     } finally {
       setLoading(false);
     }
